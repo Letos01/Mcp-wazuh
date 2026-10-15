@@ -75,11 +75,12 @@ docker compose -f docker-compose.yml -f docker-compose.lab.yml up --build -d
 curl -s localhost:8080/healthz
 ```
 
-A live manager is not a quiet lab: it runs its own SCA scan and writes a few hundred alerts of its
-own (rule 19007-19009, level 7, agent 000). They outnumber the seeded ones, so filter by rule, agent
-or technique rather than by level alone. SCA alerts carry `rule.mitre_techniques`, not
-`rule.mitre.id`, so `mitre_technique` and `alert_stats group_by=mitre_technique` only see
-ordinary rule alerts.
+A live manager is not a quiet lab: it runs its own SCA (Security Configuration Assessment) scan and
+writes a few hundred alerts of its own (rule 19007-19009, level 7, agent 000) — compliance checklist
+results (CIS Benchmark), not security events. `search_alerts` and `alert_stats` exclude the `sca`
+rule group by default so they don't drown real alerts; pass the specific `rule_id` to `search_alerts`
+to fetch an SCA finding anyway. SCA alerts also carry `rule.mitre_techniques`, not `rule.mitre.id`,
+so `mitre_technique` and `alert_stats group_by=mitre_technique` only ever see ordinary rule alerts.
 
 ## 5. End-to-end tests against the lab
 

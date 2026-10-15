@@ -43,6 +43,10 @@ export function buildAlertQuery(
   if (args.rule_level_min !== undefined) filter.push({ range: { "rule.level": { gte: args.rule_level_min } } });
   if (args.rule_id !== undefined) filter.push({ term: { "rule.id": String(args.rule_id) } });
   if (args.mitre_technique) filter.push({ term: { "rule.mitre.id": args.mitre_technique } });
+  // SCA (Security Configuration Assessment) findings are compliance checklist results, not security
+  // events: they can outnumber real alerts on a live manager and skew both search and aggregation.
+  // Excluded by default; an explicit rule_id still reaches them.
+  if (args.rule_id === undefined) filter.push({ bool: { must_not: [{ term: { "rule.groups": "sca" } }] } });
 
   const must: unknown[] = [];
   if (args.text) {
@@ -65,6 +69,8 @@ export const searchAlerts = defineTool({
   description:
     "Search security alerts in the Wazuh Indexer, newest first. Use it to answer questions like " +
     "'level >= 10 alerts on web-01 in the last 24h' or 'alerts for MITRE T1110 this week'. " +
+    "Excludes SCA (Security Configuration Assessment) findings by default, since those are compliance " +
+    "checklist results, not security events; pass the specific rule_id to fetch one anyway. " +
     "Returns a summary per alert; call get_alert for full details. The window defaults to the last 24h and " +
     "cannot exceed the server's maximum (default 30 days). " +
     UNTRUSTED_NOTE,
@@ -164,7 +170,9 @@ export const alertStats = defineTool({
   title: "Aggregate Wazuh alerts",
   description:
     "Count alerts in a time window grouped by rule, agent, MITRE technique or level. Use it for " +
-    "'which techniques appeared most this week' or 'noisiest agents today'. " +
+    "'which techniques appeared most this week' or 'noisiest agents today'. Excludes SCA (Security " +
+    "Configuration Assessment) findings, since those are compliance checklist results, not security " +
+    "events, and would otherwise dominate the counts. " +
     UNTRUSTED_NOTE,
   inputSchema: z
     .object({

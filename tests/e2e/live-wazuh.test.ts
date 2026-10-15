@@ -49,8 +49,21 @@ describe.runIf(enabled)("live Wazuh", () => {
     expect(rule.json.result.level).toBe(5);
   });
 
-  // Filtered by rule id, not by level: a live manager emits its own alerts (SCA, level 7)
-  // that would otherwise fill the first page and push the seeded ones out.
+  // The live manager's own SCA scan (CIS Benchmark compliance checks, not security events) writes
+  // hundreds of level-7 alerts (rule 19007-19009); confirm they stay out of alerts/stats by default,
+  // but a specific rule_id still reaches one.
+  it("excludes SCA compliance findings by default, but not when asked for by rule_id", async () => {
+    const broad = await session.call("search_alerts", { rule_level_min: 6, limit: 500 });
+    const scaIds = broad.json.result.alerts.filter((a: { rule: { id: string } }) => a.rule.id.startsWith("1900"));
+    expect(scaIds).toHaveLength(0);
+
+    const stats = await session.call("alert_stats", { group_by: "rule", top: 50 });
+    expect(stats.json.result.groups.some((g: { key: string }) => g.key.startsWith("1900"))).toBe(false);
+
+    const explicit = await session.call("search_alerts", { rule_id: 19007 });
+    expect(explicit.json.result.alerts.length).toBeGreaterThan(0);
+  });
+
   it("flags the seeded prompt-injection payloads", async () => {
     const r = await session.call("search_alerts", { rule_id: 31106 });
     expect(r.json.result.alerts.length).toBeGreaterThan(0);
