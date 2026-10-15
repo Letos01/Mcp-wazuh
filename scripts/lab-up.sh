@@ -27,6 +27,15 @@ cd "$LAB_DIR/wazuh-docker/single-node"
 if [ ! -f config/wazuh_indexer_ssl_certs/root-ca.pem ]; then
   docker compose -f generate-indexer-certs.yml run --rm generator
 fi
+# wazuh-docker 4.14's compose mounts root-ca-manager.pem for the manager, but
+# wazuh-certs-generator:0.0.2 only writes root-ca.pem: same CA, extra copy.
+CERTS=config/wazuh_indexer_ssl_certs
+if [ ! -f "$CERTS/root-ca-manager.pem" ]; then
+  chmod u+w "$CERTS"                                   # the generator leaves the directory read-only
+  cp "$CERTS/root-ca.pem" "$CERTS/root-ca-manager.pem"
+  chmod 444 "$CERTS/root-ca-manager.pem"
+  chmod u-w "$CERTS"
+fi
 if [ "$(uname -s)" = "Linux" ] && [ "$(sysctl -n vm.max_map_count)" -lt 262144 ]; then
   echo "Linux: raising vm.max_map_count for the indexer (sudo)"; sudo sysctl -w vm.max_map_count=262144
 fi
@@ -47,6 +56,17 @@ for i in $(seq 1 30); do
   curl -sk -u admin:SecretPassword https://localhost:9200/_index_template/wazuh -o /dev/null -w '%{http_code}' | grep -q 200 && break
   curl -sk -u admin:SecretPassword https://localhost:9200/_template/wazuh -o /dev/null -w '%{http_code}' | grep -q 200 && break
   sleep 5
+done
+# A cold manager needs more than the API's internal 10s budget to compile the
+# ruleset, so the first GET /rules answers 500. Warm it up before the tests.
+TOKEN=$(curl -sk -u 'wazuh-wui:MyS3cr37P450r.*-' -X POST \
+        'https://localhost:55000/security/user/authenticate?raw=true')
+for i in $(seq 1 12); do
+  rules=$(curl -sk -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" \
+          'https://localhost:55000/rules?limit=1' || true)
+  printf '\r   ruleset=%s' "$rules"
+  [ "$rules" = 200 ] && break
+  sleep 10
 done
 echo
 

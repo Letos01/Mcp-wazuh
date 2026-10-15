@@ -17,9 +17,18 @@ The steps below are what the script does, for when you want to run them by hand.
 git clone https://github.com/wazuh/wazuh-docker.git -b v4.14.0
 cd wazuh-docker/single-node
 docker compose -f generate-indexer-certs.yml run --rm generator
+# The compose file mounts root-ca-manager.pem, which the 0.0.2 generator does not write:
+# without this copy the manager container fails to start.
+chmod u+w config/wazuh_indexer_ssl_certs
+cp config/wazuh_indexer_ssl_certs/root-ca{,-manager}.pem
+chmod 444 config/wazuh_indexer_ssl_certs/root-ca-manager.pem
+chmod u-w config/wazuh_indexer_ssl_certs
 docker compose up -d
 # wait ~1-2 min, then open https://localhost (admin / SecretPassword)
 ```
+
+A cold manager also needs a minute before `GET /rules` answers: the first call has to compile the
+ruleset and the Wazuh API gives up at 10s, returning 500. `lab-up.sh` waits for it.
 
 On Linux you may need `sudo sysctl -w vm.max_map_count=262144` for the indexer.
 
@@ -66,6 +75,12 @@ docker compose -f docker-compose.yml -f docker-compose.lab.yml up --build -d
 curl -s localhost:8080/healthz
 ```
 
+A live manager is not a quiet lab: it runs its own SCA scan and writes a few hundred alerts of its
+own (rule 19007-19009, level 7, agent 000). They outnumber the seeded ones, so filter by rule, agent
+or technique rather than by level alone. SCA alerts carry `rule.mitre_techniques`, not
+`rule.mitre.id`, so `mitre_technique` and `alert_stats group_by=mitre_technique` only see
+ordinary rule alerts.
+
 ## 5. End-to-end tests against the lab
 
 ```bash
@@ -73,6 +88,10 @@ WAZUH_E2E=1 WAZUH_API_URL=https://localhost:55000 WAZUH_API_USER=mcp-reader WAZU
 WAZUH_INDEXER_URL=https://localhost:9200 WAZUH_INDEXER_USER=mcp-reader WAZUH_INDEXER_PASSWORD='Str0ng!ReaderPass' \
 TLS_INSECURE=true npm run test:e2e
 ```
+
+Besides the tool checks, the suite probes the `mcp-reader` credentials against the live cluster and
+fails if they can write anything or read any index outside `wazuh-alerts-*` and
+`wazuh-states-vulnerabilities-*` (see T7 in `docs/threat-model.md`).
 
 ## 6. Try it
 
