@@ -12,6 +12,10 @@ appeared most this week?"* or *"triage alert 1729000000.1234"*. mcp-wazuh answer
 A SIEM is full of attacker-written text: user agents, URLs, command lines, file names. Most MCP servers pass that text
 straight into the model's context. **mcp-wazuh treats every log-derived byte as hostile.**
 
+![Demo: level >= 7 alerts, then an alert whose log impersonates the system is flagged as injection_suspected](docs/demo.gif)
+
+_Real server output on the mock data (`npm run smoke`), replayed as a terminal-style demo._
+
 ## Why it's different
 
 | | Typical SIEM MCP server | mcp-wazuh |
