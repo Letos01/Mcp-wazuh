@@ -24,7 +24,7 @@ Servidor MCP (Model Context Protocol) **somente leitura** que expõe dados do Wa
 
 ## 3. Stack
 
-- TypeScript (Node 20+), SDK oficial `@modelcontextprotocol/sdk`
+- TypeScript (Node 22.12+), SDK oficial `@modelcontextprotocol/sdk`
 - `zod` para schemas de entrada
 - `undici` ou `fetch` nativo para HTTP; `pino` para logs
 - `vitest` + `msw` (mock HTTP) para testes
