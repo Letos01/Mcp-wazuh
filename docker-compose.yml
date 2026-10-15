@@ -1,0 +1,31 @@
+# mcp-wazuh over Streamable HTTP.
+#
+#   Demo (no Wazuh needed):  docker compose --profile demo up --build
+#   Real Wazuh:              cp .env.example .env  (edit)  &&  docker compose up --build
+#   wazuh-docker lab:        docker compose -f docker-compose.yml -f docker-compose.lab.yml up --build
+services:
+  mcp-wazuh:
+    build: .
+    env_file: .env
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HTTP_HOST: 0.0.0.0           # inside the container; published to loopback only (below)
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./audit:/var/log/mcp-wazuh
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  mock-wazuh:
+    profiles: [demo]
+    build: .
+    entrypoint: ["node", "scripts/mock-wazuh.mjs"]
+    environment:
+      MOCK_HOST: 0.0.0.0
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

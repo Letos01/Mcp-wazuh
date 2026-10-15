@@ -1,0 +1,9 @@
+# Joins mcp-wazuh to the network created by wazuh-docker's single-node stack
+# (https://github.com/wazuh/wazuh-docker, folder single-node). See docs/lab.md.
+services:
+  mcp-wazuh:
+    networks: [wazuh]
+networks:
+  wazuh:
+    external: true
+    name: single-node_default
