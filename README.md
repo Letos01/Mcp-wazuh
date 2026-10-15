@@ -194,6 +194,14 @@ Full analysis in **[docs/threat-model.md](docs/threat-model.md)**. In short:
 8. **Safe errors**: the model gets a generic message plus a reference; details stay in the internal log.
 9. **Transport**: Bearer tokens compared in constant time, loopback bind by default, 256 KB body limit, TLS validation on.
 
+## Findings
+
+Testing against a real Wazuh (not the mock) found a gap the mock could not: `get_agent` returned the raw `os` block,
+including `os.uname`, a free-form string chosen by the endpoint, so text from a compromised host reached the model
+unsanitized. The mock's agents had no `uname`, so every test passed. Fixed in `0bdb807`: all agent-reported fields now go
+through the same sanitizer and injection scan, with a regression test. Lesson: mocks encode your assumptions; run
+the end-to-end suite against the real thing.
+
 ## Development
 
 ```bash
