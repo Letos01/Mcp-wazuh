@@ -5,3 +5,4 @@ audit/
 .env
 *.log
 .DS_Store
+.lab/

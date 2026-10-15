@@ -108,7 +108,10 @@ With Docker (HTTP mode): `cp .env.demo .env && docker compose --profile demo up 
 
 ### 2. Real Wazuh
 
-Create least-privilege accounts (see [docs/lab.md](docs/lab.md) for a full single-node lab):
+**Fastest:** `./scripts/lab-up.sh` starts Wazuh 4.14 in Docker, creates the read-only users, seeds sample alerts and runs
+the end-to-end tests against it ([docs/lab.md](docs/lab.md)).
+
+For an existing Wazuh, create least-privilege accounts:
 
 ```bash
 ./scripts/lab-create-readonly-users.sh 'Str0ng!ReaderPass'

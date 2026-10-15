@@ -2,6 +2,15 @@
 
 About 15 minutes on a machine with Docker and ~6 GB of free RAM.
 
+## Shortcut: one command
+
+```bash
+./scripts/lab-up.sh        # Wazuh up -> read-only users -> sample alerts -> e2e tests
+./scripts/lab-down.sh      # stop (add --purge to delete volumes)
+```
+
+The steps below are what the script does, for when you want to run them by hand.
+
 ## 1. Start Wazuh 4.14 (official wazuh-docker)
 
 ```bash
