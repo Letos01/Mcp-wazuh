@@ -2,7 +2,7 @@
 
 **A security-first, read-only MCP server that lets AI agents investigate your Wazuh SIEM without letting attackers talk to your AI through your logs.**
 
-[![CI](https://github.com/OWNER/mcp-wazuh/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/mcp-wazuh/actions/workflows/ci.yml)
+[![CI](https://github.com/Letos01/mcp-wazuh/actions/workflows/ci.yml/badge.svg)](https://github.com/Letos01/mcp-wazuh/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![Wazuh](https://img.shields.io/badge/Wazuh-4.8%2B-0f6dbd)
 
