@@ -6,17 +6,33 @@ import type { UntrustedCollector } from "../security/sanitize.js";
 import * as s from "./schemas.js";
 import { defineTool, UNTRUSTED_NOTE } from "./types.js";
 
+/**
+ * Everything an agent reports about itself is attacker-controlled on a compromised
+ * endpoint: the enrollment name, the agent version and the whole OS block
+ * (os.uname is a free-form kernel/hostname string). All of it goes through the collector.
+ */
 function presentAgent(a: WazuhAgent, u: UntrustedCollector) {
   return {
     id: a.id,
-    // Agent names are chosen at enrollment time and can be attacker-controlled.
     name: u.field(a.name, `agent.name:${a.id}`, 64),
     ip: a.ip,
     status: a.status,
-    version: a.version,
-    os: a.os ? { name: a.os.name, platform: a.os.platform, version: a.os.version } : undefined,
+    version: u.field(a.version, `agent.version:${a.id}`, 64),
+    os: presentOs(a.os, a.id, u),
     groups: a.group ?? [],
     last_keepalive: a.lastKeepAlive,
+  };
+}
+
+function presentOs(os: WazuhAgent["os"], agentId: string | undefined, u: UntrustedCollector) {
+  if (!os) return undefined;
+  const at = (f: string) => `agent.os.${f}:${agentId}`;
+  return {
+    name: u.field(os.name, at("name"), 128),
+    platform: u.field(os.platform, at("platform"), 64),
+    version: u.field(os.version, at("version"), 64),
+    ...(os.arch ? { arch: u.field(os.arch, at("arch"), 32) } : {}),
+    ...(os.uname ? { uname: u.field(os.uname, at("uname"), 256) } : {}),
   };
 }
 
@@ -59,7 +75,7 @@ export const getAgent = defineTool({
     const a = presentAgent(agent, ctx.untrusted);
     return {
       count: 1,
-      data: { ...a, os: agent.os, date_added: agent.dateAdd, node: agent.node_name },
+      data: { ...a, date_added: agent.dateAdd, node: agent.node_name },
     };
   },
 });

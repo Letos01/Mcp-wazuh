@@ -23,7 +23,7 @@ export interface WazuhAgent {
   dateAdd?: string;
   group?: string[];
   node_name?: string;
-  os?: { name?: string; platform?: string; version?: string; arch?: string };
+  os?: { name?: string; platform?: string; version?: string; arch?: string; uname?: string };
 }
 
 export interface WazuhRule {
