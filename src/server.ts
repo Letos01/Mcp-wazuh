@@ -16,7 +16,7 @@ import { TOOLS } from "./tools/index.js";
 import type { ToolDefinition } from "./tools/types.js";
 
 export const SERVER_NAME = "mcp-wazuh";
-export const SERVER_VERSION = "1.0.0";
+export const SERVER_VERSION = "1.1.0";
 
 export interface ServerDeps {
   api: WazuhApiClient;
