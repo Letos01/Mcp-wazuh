@@ -176,6 +176,7 @@ with `Authorization: Bearer <token>`. It binds to `127.0.0.1:8080` by default; e
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
 | `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | `127.0.0.1` / `8080` | |
 | `MCP_AUTH_TOKENS` | — | Required in HTTP mode; comma-separated, ≥ 32 chars each |
+| `MCP_ALLOWED_ORIGINS` | — | Browser origins allowed to call `/mcp` (comma-separated). Requests with any other `Origin` get 403 |
 | `MAX_RESULTS` | `50` | Hard cap per call |
 | `MAX_TIME_WINDOW_DAYS` | `30` | Max span of one query |
 | `MAX_FIELD_LENGTH` | `2000` | Truncation of log-derived fields |
@@ -190,13 +191,13 @@ Full analysis in **[docs/threat-model.md](docs/threat-model.md)**. In short:
 
 1. **Least privilege**: read-only tools only; `readonly` API role; read-only index permissions; startup warning if the API user is an administrator.
 2. **Untrusted data envelope**: log-derived content returns inside `<untrusted_data source=… id=…>`. Tool descriptions and server instructions tell the model it is evidence, never instructions.
-3. **Sanitization**: NFKC normalization, ANSI/OSC/control/bidi/zero-width stripping, forged wrapper tags neutralized, truncation.
+3. **Sanitization**: NFKC normalization, ANSI/OSC/control/bidi/zero-width stripping, invisible Unicode tag characters ("ASCII smuggling") decoded into a visible `[hidden-unicode-text: …]` marker and flagged, forged wrapper tags neutralized, truncation.
 4. **Injection tripwire**: English and Portuguese patterns (instruction override, role reassignment, chat-template tokens, forged tool calls, exfiltration requests) plus base64 decoding. It flags and never blocks, so evidence is not lost.
 5. **No query injection**: strict schemas (ids by regex, enums, bounded numbers, no extra fields); queries are built server-side; free text runs with `simple_query_string` and `flags: NONE`.
 6. **Guardrails**: result caps, time-window cap, rate limiting, timeouts.
 7. **Audit**: one JSONL line per call (`ok`, `error`, `denied`, `rate_limited`), with injection reasons and an error reference id. No secrets.
 8. **Safe errors**: the model gets a generic message plus a reference; details stay in the internal log.
-9. **Transport**: Bearer tokens compared in constant time, loopback bind by default, 256 KB body limit, TLS validation on.
+9. **Transport**: Bearer tokens compared in constant time, failed authentication rate-limited per IP (no audit flooding), `Origin` validated against DNS rebinding, loopback bind by default, 256 KB body limit, TLS validation on, upstream redirects refused.
 
 ## Findings
 
@@ -210,7 +211,7 @@ the end-to-end suite against the real thing.
 
 ```bash
 npm run lint && npm run typecheck
-npm test                 # unit + integration + prompt-injection suite (78 tests)
+npm test                 # unit + integration + prompt-injection suite (83 tests)
 npm run coverage         # thresholds enforced on src/security and src/tools
 npm run smoke            # built server over stdio against the mock
 npm run test:e2e         # against a live lab (WAZUH_E2E=1, see docs/lab.md)
