@@ -1,10 +1,14 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { BearerAuth } from "../security/auth.js";
+import { RateLimiter } from "../security/rateLimit.js";
 import { createMcpServer, type ServerDeps } from "../server.js";
 
 const MAX_BODY_BYTES = 256 * 1024;
 const MCP_PATH = "/mcp";
+// Failed authentication attempts allowed per client IP per minute. Past this the server answers 429 and
+// stops auditing that IP for the window, so a client without a token cannot flood the audit log.
+const MAX_AUTH_FAILURES_PER_MINUTE = 20;
 
 function sendJson(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) {
   res.writeHead(status, { "Content-Type": "application/json", ...headers });
@@ -29,6 +33,8 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
  */
 export function createHttpApp(deps: ServerDeps): Server {
   const auth = new BearerAuth(deps.config.http.authTokens);
+  const authFailures = new RateLimiter(MAX_AUTH_FAILURES_PER_MINUTE);
+  const allowedOrigins = new Set(deps.config.http.allowedOrigins);
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -38,11 +44,26 @@ export function createHttpApp(deps: ServerDeps): Server {
     }
     if (url.pathname !== MCP_PATH) return sendJson(res, 404, { error: "not_found" });
 
+    // MCP spec: validate Origin to block DNS-rebinding from browsers. Non-browser clients send none.
+    const origin = req.headers.origin;
+    if (origin !== undefined && !allowedOrigins.has(origin)) {
+      return sendJson(res, 403, { error: "origin_not_allowed" });
+    }
+
     const caller = auth.verify(req.headers.authorization);
     if (!caller) {
+      const ip = req.socket.remoteAddress ?? "unknown";
+      if (!authFailures.take(ip)) {
+        return sendJson(
+          res,
+          429,
+          { error: "too_many_failed_auth" },
+          { "Retry-After": String(authFailures.retryAfter(ip)) },
+        );
+      }
       await deps.audit.write({
         ts: new Date().toISOString(),
-        caller: `ip:${req.socket.remoteAddress ?? "unknown"}`,
+        caller: `ip:${ip}`,
         kind: "auth",
         name: `${req.method} ${MCP_PATH}`,
         outcome: "denied",

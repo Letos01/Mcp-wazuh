@@ -18,6 +18,7 @@ const ConfigSchema = z
     MCP_HTTP_HOST: z.string().default("127.0.0.1"),
     MCP_HTTP_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
     MCP_AUTH_TOKENS: z.string().optional(),
+    MCP_ALLOWED_ORIGINS: z.string().optional(),
     MAX_RESULTS: z.coerce.number().int().min(1).max(500).default(50),
     MAX_TIME_WINDOW_DAYS: z.coerce.number().int().min(1).max(365).default(30),
     MAX_FIELD_LENGTH: z.coerce.number().int().min(100).max(20000).default(2000),
@@ -53,7 +54,7 @@ export interface Config {
   indexer: { url: string; user: string; password: string; alertsIndex: string; vulnIndex: string };
   tls: { caPath?: string; insecure: boolean };
   transport: "stdio" | "http";
-  http: { host: string; port: number; authTokens: string[] };
+  http: { host: string; port: number; authTokens: string[]; allowedOrigins: string[] };
   limits: {
     maxResults: number;
     maxTimeWindowDays: number;
@@ -93,7 +94,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     tls: { caPath: c.TLS_CA_PATH, insecure: c.TLS_INSECURE },
     transport: c.MCP_TRANSPORT,
-    http: { host: c.MCP_HTTP_HOST, port: c.MCP_HTTP_PORT, authTokens: parseTokens(c.MCP_AUTH_TOKENS) },
+    http: {
+      host: c.MCP_HTTP_HOST,
+      port: c.MCP_HTTP_PORT,
+      authTokens: parseTokens(c.MCP_AUTH_TOKENS),
+      allowedOrigins: parseTokens(c.MCP_ALLOWED_ORIGINS),
+    },
     limits: {
       maxResults: c.MAX_RESULTS,
       maxTimeWindowDays: c.MAX_TIME_WINDOW_DAYS,

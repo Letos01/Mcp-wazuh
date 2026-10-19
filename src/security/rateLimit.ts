@@ -1,4 +1,7 @@
-/** Sliding-window rate limiter keyed by caller (token hash or "stdio"). */
+// Idle keys are dropped once the map grows past this, so per-IP keys (failed auth) stay bounded.
+const MAX_KEYS = 10_000;
+
+/** Sliding-window rate limiter keyed by caller (token hash, "stdio", or client IP for failed auth). */
 export class RateLimiter {
   private readonly hits = new Map<string, number[]>();
 
@@ -12,6 +15,7 @@ export class RateLimiter {
   take(key: string): boolean {
     const t = this.now();
     const cutoff = t - this.windowMs;
+    if (this.hits.size > MAX_KEYS) this.prune(cutoff);
     const list = (this.hits.get(key) ?? []).filter((x) => x > cutoff);
     if (list.length >= this.limit) {
       this.hits.set(key, list);
@@ -20,6 +24,10 @@ export class RateLimiter {
     list.push(t);
     this.hits.set(key, list);
     return true;
+  }
+
+  private prune(cutoff: number): void {
+    for (const [k, list] of this.hits) if (!list.some((x) => x > cutoff)) this.hits.delete(k);
   }
 
   /** Seconds until the next call would be allowed. */

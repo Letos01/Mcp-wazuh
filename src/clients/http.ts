@@ -31,7 +31,8 @@ export function createFetch(tls: TlsOptions): FetchLike {
       rejectUnauthorized: !tls.insecure,
     },
   });
-  return (url, init) => undiciFetch(url, { ...init, dispatcher }) as Promise<FetchResponse>;
+  // redirect: "error": credentials travel in headers, so a redirect is refused rather than followed.
+  return (url, init) => undiciFetch(url, { ...init, dispatcher, redirect: "error" }) as Promise<FetchResponse>;
 }
 
 export function basicAuth(user: string, password: string): string {
