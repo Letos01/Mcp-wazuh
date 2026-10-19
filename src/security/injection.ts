@@ -51,6 +51,8 @@ const RULES: Rule[] = [
     re: /(<\|im_(start|end)\|>|<\|(system|user|assistant|endoftext)\|>|\[\/?INST\]|<<\/?SYS>>|^\s*###\s*(system|instruction)s?\b)/im,
   },
   { id: "role_marker", re: /(^|\n)\s*(system|assistant|human|user)\s*:\s*\S/i },
+  // Set by the sanitizer when it decodes invisible Unicode tag characters: hiding text is itself the signal.
+  { id: "hidden_unicode_text", re: /\[hidden-unicode-text: / },
   {
     id: "tool_call_forgery",
     re: /(<\/?(function_calls|invoke|tool_call|tool_use|antml:[a-z_]+)\b|"(tool_use|function_call|tool_calls)"\s*:|"name"\s*:\s*"[a-z_]{3,}"\s*,\s*"(arguments|input|parameters)"\s*:)/i,

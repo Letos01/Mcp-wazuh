@@ -19,8 +19,24 @@ const ANSI_OSC = /\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?/g;
 const ANSI_OTHER = /\u001b[@-Z\\-_]/g;
 // C0 controls except \t \n \r, DEL and C1 controls
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
-// Bidi overrides/isolates and zero-width characters (used to hide or reorder text)
-const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+// Bidi overrides/isolates, zero-width and other invisible characters (used to hide or reorder text):
+// soft hyphen, combining grapheme joiner, Mongolian vowel separator, Hangul fillers, variation selectors.
+const INVISIBLE =
+  /[\u00AD\u034F\u115F\u1160\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\u3164\uFE00-\uFE0F\uFEFF\uFFA0]|[\u{E0100}-\u{E01EF}]/gu;
+// Unicode "tag" characters (U+E0000-E007F) mirror ASCII but render as nothing: a known way to smuggle
+// instructions a human cannot see but a model reads. They are decoded into a visible marker, so the
+// analyst sees the hidden text and the injection detector scans it.
+const TAG_RUN = /[\u{E0000}-\u{E007F}]+/gu;
+export const HIDDEN_TEXT_MARKER = "[hidden-unicode-text: ";
+
+function revealTags(run: string): string {
+  const decoded = [...run]
+    .map((c) => (c.codePointAt(0) ?? 0) - 0xe0000)
+    .filter((cp) => cp >= 0x20 && cp <= 0x7e)
+    .map((cp) => String.fromCharCode(cp))
+    .join("");
+  return decoded ? `${HIDDEN_TEXT_MARKER}${decoded}]` : "";
+}
 // Any attempt to open/close/forge the wrapper tag, tolerant to spacing and case
 const WRAPPER_FORGERY = /<\s*\/?\s*untrusted[\s_-]*data\b[^>]*>?/gi;
 
@@ -31,6 +47,7 @@ export function cleanText(input: unknown, maxLength: number): string {
   let s = typeof input === "string" ? input : safeStringify(input);
   s = s.normalize("NFKC");
   s = s.replace(ANSI_OSC, "").replace(ANSI_CSI, "").replace(ANSI_OTHER, "");
+  s = s.replace(TAG_RUN, revealTags);
   s = s.replace(CONTROL, "").replace(INVISIBLE, "");
   s = s.replace(WRAPPER_FORGERY, "[removed-wrapper-tag]");
   if (s.length > maxLength) s = s.slice(0, maxLength) + TRUNCATION_MARKER;
