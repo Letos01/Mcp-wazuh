@@ -17,7 +17,11 @@ beforeAll(async () => {
     "POST /security/user/authenticate": authRoute,
     "GET /rules": () => ({ json: items([{ id: 5710, level: 5, description: "sshd" }]) }),
   });
-  const made = makeDeps(f.fetchImpl, { MCP_TRANSPORT: "http", MCP_AUTH_TOKENS: TOKEN });
+  const made = makeDeps(f.fetchImpl, {
+    MCP_TRANSPORT: "http",
+    MCP_AUTH_TOKENS: TOKEN,
+    MCP_ALLOWED_ORIGINS: "https://trusted.example",
+  });
   audit = made.audit;
   app = createHttpApp(made.deps);
   await new Promise<void>((r) => app.listen(0, "127.0.0.1", r));
@@ -81,5 +85,34 @@ describe("Streamable HTTP transport", () => {
     const toolRecord = audit.records.find((r) => r.kind === "tool" && r.name === "get_rule");
     expect(toolRecord?.caller).toBe(callerIdForToken(TOKEN));
     expect(JSON.stringify(audit.records)).not.toContain(TOKEN);
+  });
+
+  it("rejects browser requests from origins that are not allowed (DNS rebinding)", async () => {
+    const post = (origin: string) =>
+      fetch(`${base}/mcp`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          Origin: origin,
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify(initBody),
+      });
+    expect((await post("https://evil.example")).status).toBe(403);
+    expect((await post("https://trusted.example")).status).toBe(200);
+  });
+
+  // keep last: it exhausts the failed-auth budget for 127.0.0.1
+  it("limits failed authentication per IP and stops auditing the flood", async () => {
+    const before = audit.records.filter((r) => r.kind === "auth").length;
+    const statuses: number[] = [];
+    for (let i = 0; i < 30; i++) {
+      const r = await fetch(`${base}/mcp`, { method: "POST", headers: { Authorization: "Bearer nope" }, body: "{}" });
+      statuses.push(r.status);
+    }
+    expect(statuses).toContain(429);
+    const audited = audit.records.filter((r) => r.kind === "auth").length - before;
+    expect(audited).toBeLessThanOrEqual(20);
   });
 });
