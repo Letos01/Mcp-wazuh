@@ -58,7 +58,7 @@ flowchart LR
 |---|---|---|
 | `search_alerts` | Alerts by time window, agent, min level, rule, MITRE technique, literal text (newest first) | Indexer |
 | `get_alert` | Full alert: rule, MITRE tactics/techniques, decoder, location, full log, decoded data | Indexer |
-| `alert_stats` | Top-N counts grouped by rule, agent, MITRE technique or level | Indexer (aggregations) |
+| `alert_stats` | Top-N counts grouped by rule, agent, MITRE technique or level, optionally for one agent | Indexer (aggregations) |
 | `list_agents` | Agents by status (e.g. `disconnected`), OS platform, group | Server API |
 | `get_agent` | One agent's details | Server API |
 | `get_rule` | Why a rule fires: level, groups, MITRE, PCI DSS / GDPR / HIPAA / NIST / TSC | Server API |
@@ -211,7 +211,7 @@ the end-to-end suite against the real thing.
 
 ```bash
 npm run lint && npm run typecheck
-npm test                 # unit + integration + prompt-injection suite (83 tests)
+npm test                 # unit + integration + prompt-injection suite (84 tests)
 npm run coverage         # thresholds enforced on src/security and src/tools
 npm run smoke            # built server over stdio against the mock
 npm run test:e2e         # against a live lab (WAZUH_E2E=1, see docs/lab.md)

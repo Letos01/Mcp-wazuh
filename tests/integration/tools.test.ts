@@ -199,6 +199,22 @@ describe("get_alert / alert_stats", () => {
     });
     expect((f.calls[0].body as any).aggs.groups.terms).toEqual({ field: "rule.mitre.id", size: 5 });
   });
+
+  it("aggregates for one agent with a server-built filter, and rejects an injected agent_id", async () => {
+    const f = fakeFetch({
+      "POST /wazuh-alerts-*/_search": () => ({
+        json: { hits: { total: { value: 3 }, hits: [] }, aggregations: { groups: { buckets: [] } } },
+      }),
+    });
+    const { deps } = makeDeps(f.fetchImpl);
+    session = await connect(deps);
+    const ok = await session.call("alert_stats", { group_by: "mitre_technique", agent_id: "002" });
+    expect(ok.isError).toBeFalsy();
+    const filter = (f.calls[0].body as any).query.bool.filter;
+    expect(filter).toContainEqual({ term: { "agent.id": "002" } });
+    const bad = await session.call("alert_stats", { group_by: "rule", agent_id: "002 OR 1=1" });
+    expect(bad.isError).toBe(true);
+  });
 });
 
 describe("agents, rules, vulnerabilities", () => {

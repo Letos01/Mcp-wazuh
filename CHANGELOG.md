@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- `alert_stats` accepts an optional `agent_id` / `agent_name` filter (same validation as `search_alerts`), so an
+  agent can ask "which techniques hit this host in this window". Found by the soc-agents deployment: its
+  investigator sent `agent_id` and every call was rejected by the strict schema, surfaced as Wazuh alerts by the
+  audit-log ingestion.
+
 ## 1.1.0
 
 Security hardening from a pre-publication review:

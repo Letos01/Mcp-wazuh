@@ -169,8 +169,9 @@ export const alertStats = defineTool({
   name: "alert_stats",
   title: "Aggregate Wazuh alerts",
   description:
-    "Count alerts in a time window grouped by rule, agent, MITRE technique or level. Use it for " +
-    "'which techniques appeared most this week' or 'noisiest agents today'. Excludes SCA (Security " +
+    "Count alerts in a time window grouped by rule, agent, MITRE technique or level, optionally for one " +
+    "agent. Use it for 'which techniques appeared most this week', 'noisiest agents today' or 'which " +
+    "techniques hit web-01 in the last hour'. Excludes SCA (Security " +
     "Configuration Assessment) findings, since those are compliance checklist results, not security " +
     "events, and would otherwise dominate the counts. " +
     UNTRUSTED_NOTE,
@@ -179,6 +180,8 @@ export const alertStats = defineTool({
       time_from: s.timeFrom,
       time_to: s.timeTo,
       group_by: z.enum(["rule", "agent", "mitre_technique", "level"]),
+      agent_id: s.agentId.optional(),
+      agent_name: s.agentName.optional(),
       rule_level_min: z.number().int().min(0).max(15).optional(),
       top: z.number().int().min(1).max(50).optional().describe("Number of groups to return (default 10)"),
     })
@@ -194,7 +197,10 @@ export const alertStats = defineTool({
     const res = await ctx.indexer.search<never>(ctx.config.indexer.alertsIndex, {
       size: 0,
       track_total_hits: true,
-      query: buildAlertQuery({ rule_level_min: args.rule_level_min }, range),
+      query: buildAlertQuery(
+        { agent_id: args.agent_id, agent_name: args.agent_name, rule_level_min: args.rule_level_min },
+        range,
+      ),
       aggs: { groups: terms },
     });
     const buckets = ((res.aggregations?.groups as { buckets?: Bucket[] })?.buckets ?? []).map((b) => ({
